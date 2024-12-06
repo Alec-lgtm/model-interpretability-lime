@@ -4,6 +4,7 @@ import torch.optim as optim
 from torch.utils.data import Dataset, DataLoader
 import numpy as np
 from lime.lime_text import LimeTextExplainer
+from custom_lime import CustomLineTextExplainer
 from data import IMDBData
 import argparse
 from typing import List, Tuple
