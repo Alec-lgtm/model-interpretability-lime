@@ -4,7 +4,7 @@ import torch.optim as optim
 from torch.utils.data import Dataset, DataLoader
 import numpy as np
 from lime.lime_text import LimeTextExplainer
-from custom_lime import CustomLineTextExplainer
+from custom_lime import CustomLimeTextExplainer
 from data import IMDBData
 import argparse
 from typing import List, Tuple
@@ -141,7 +141,7 @@ class NeuralClassifier:
 
 def create_lime_explainer(classifier: NeuralClassifier):
     class_names = ['Negative', 'Positive']
-    explainer = LimeTextExplainer(class_names=class_names)
+    explainer = CustomLimeTextExplainer(class_names=class_names)
 
     def predict_fn(texts):
         predictions = []
