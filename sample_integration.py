@@ -140,8 +140,6 @@ class NeuralClassifier:
         self.model.load_state_dict(checkpoint['model_state_dict'])
 
 def create_lime_explainer(classifier: NeuralClassifier):
-    explainer = CustomLimeTextExplainer()
-
     def predict_fn(texts):
         predictions = []
         for text in texts:
@@ -149,7 +147,7 @@ def create_lime_explainer(classifier: NeuralClassifier):
             predictions.append([1 - pred, pred])
         return np.array(predictions)
 
-    return explainer, predict_fn
+    return predict_fn
 
 def main():
     parser = argparse.ArgumentParser()
@@ -191,15 +189,27 @@ def main():
                 print(f"Accuracy: {100 * correct / total:.2f}%")
 
             if args.explain:
-                explainer, predict_fn = create_lime_explainer(classifier)
-                explanation = explainer.explain_instance(
+                predict_fn = create_lime_explainer(classifier)
+
+                custom_explainer = CustomLimeTextExplainer()
+                explanation = custom_explainer.explain_instance(
                     args.explain,
                     predict_fn,
                     6,
-                    0
+                    1
                 )
-                print("Explanation for prediction:")
+                print("Explanation for prediction using custom LIME:")
                 print(explanation)
+
+                class_names = ['Negative', 'Positive']
+                original_explainer = LimeTextExplainer(class_names=class_names)
+                explanation = original_explainer.explain_instance(
+                    args.explain,
+                    predict_fn,
+                    num_features=6
+                )
+                print("Explanation for prediction using original LIME:")
+                print(explanation.as_list())
 
 if __name__ == "__main__":
     main()
