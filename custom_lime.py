@@ -70,6 +70,8 @@ class SplitString:
         self.raw_text = text_instance
         self.nonword_matcher = re.compile(r'(%s)|$' % r'\W+')
         self.split_string = [s for s in self.nonword_matcher.split(text_instance) if s]
+        # Apparently, the classifier breaks if I don't include the punctuation, so I need to keep the split_string
+        # variable so I have everything.
 
         self.words = {}
         for i, word in enumerate(self.split_string):
