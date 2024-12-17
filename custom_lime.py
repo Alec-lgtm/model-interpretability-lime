@@ -68,12 +68,6 @@ def create_linear_approximation(perturbed_masks, perturbed_labels, perturbed_dis
     return sorted(zip(used_features, model.coef_), key=lambda x: np.abs(x[1]), reverse=True)
 
 
-def mask_words(indexed_string: list[str], indices_to_remove):
-    masked_list = np.array(indexed_string).copy()
-    masked_list[indices_to_remove] = ''
-    return " ".join(masked_list)
-
-
 class SplitString:
     def __init__(self, text_instance):
         self.raw_text = text_instance
@@ -84,6 +78,19 @@ class SplitString:
         for i, word in enumerate(self.split_string):
             if word not in self.words and not self.nonword_matcher.match(word):
                 self.words.append(word)
+
+    def mask_words(self, indices_to_remove):
+        masked_list = np.array(self.split_string).copy()
+        masked_list[self.transform_positions(indices_to_remove)] = ''
+        return "".join(masked_list)
+
+    def transform_positions(self, word_indices):
+        positions = [] # This is slow, but it works.
+        for word_index in word_indices:
+            for i, word in enumerate(self.split_string):
+                if self.words[word_index] == word:
+                    positions.append(i)
+        return positions
 
 
 class CustomLimeTextExplainer(object):
@@ -107,7 +114,7 @@ class CustomLimeTextExplainer(object):
         masked_words_list = [split_string.raw_text]
         for i, mask_size in enumerate(sample, start=1):
             indices_to_mask = self.rng.choice(range(document_size), size=mask_size, replace=False)
-            masked_words_list.append(mask_words(split_string.split_string, indices_to_mask))
+            masked_words_list.append(split_string.mask_words(indices_to_mask))
             data_mask[i, indices_to_mask] = 0
             distances[i] = find_distance(data_mask[i], data_mask[0])
         labels = classifier_fn(masked_words_list)
