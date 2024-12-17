@@ -6,7 +6,8 @@ from sklearn.linear_model import Ridge, LinearRegression
 
 
 def calculate_weights(distance_array, kernel_width=25):
-    return np.sqrt(np.exp(-(distance_array ** 2) / (kernel_width ** 2))) # Converts distances to weights (0 to 1) using a Gaussian distribution
+    # Converts distances to weights (0 to 1) using a Gaussian distribution
+    return np.sqrt(np.exp(-(distance_array ** 2) / (kernel_width ** 2)))
 
 
 def find_distance(perturbed, original):
@@ -55,17 +56,13 @@ def create_linear_approximation(perturbed_masks, perturbed_labels, perturbed_dis
     weights = calculate_weights(perturbed_distances)
     labels_column = perturbed_labels[:, label]  # the label column for the label we're trying to explain
 
-    used_features = feature_selection(perturbed_masks,
-                                           labels_column,
-                                           weights,
-                                           num_features)
+    selected_features = feature_selection(perturbed_masks, labels_column, weights, num_features)
 
     # Create a linear model using the selected features
-    model = Ridge(alpha=1, fit_intercept=True)
-    model.fit(perturbed_masks[:, used_features], # only the words that were selected to be important
-              labels_column, sample_weight=weights)
+    model = Ridge()
+    model.fit(perturbed_masks[:, selected_features], labels_column, sample_weight=weights)
 
-    return sorted(zip(used_features, model.coef_), key=lambda x: np.abs(x[1]), reverse=True)
+    return sorted(zip(selected_features, model.coef_), key=lambda x: np.abs(x[1]), reverse=True)
 
 
 class SplitString:
@@ -74,10 +71,14 @@ class SplitString:
         self.nonword_matcher = re.compile(r'(%s)|$' % r'\W+')
         self.split_string = [s for s in self.nonword_matcher.split(text_instance) if s]
 
-        self.words = []
+        self.words = {}
         for i, word in enumerate(self.split_string):
-            if word not in self.words and not self.nonword_matcher.match(word):
-                self.words.append(word)
+            if not self.nonword_matcher.match(word):
+                if word in self.words.keys():
+                    self.words[word].append(i)
+                else:
+                    self.words[word] = [i]
+        self.indexed_words = list(self.words.keys())
 
     def mask_words(self, indices_to_remove):
         masked_list = np.array(self.split_string).copy()
@@ -85,11 +86,11 @@ class SplitString:
         return "".join(masked_list)
 
     def transform_positions(self, word_indices):
-        positions = [] # This is slow, but it works.
+        # There are two types of split string in this class, the list of words and the list of everything (including
+        # non-words). This function converts the indices of the words to the indices of the everything list.
+        positions = []
         for word_index in word_indices:
-            for i, word in enumerate(self.split_string):
-                if self.words[word_index] == word:
-                    positions.append(i)
+            positions.extend(self.words[self.indexed_words[word_index]])
         return positions
 
 
@@ -103,7 +104,7 @@ class CustomLimeTextExplainer(object):
 
         explanations = create_linear_approximation(data_mask, labels, distances, class_id, num_features)
 
-        return [(split_string.words[result[0]], float(result[1])) for result in explanations]
+        return [(split_string.indexed_words[result[0]], float(result[1])) for result in explanations]
 
     def generate_perturbed_samples(self, classifier_fn, num_samples, split_string: SplitString):
         document_size = len(split_string.words)
